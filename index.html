@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worklog — your task desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F2F3EF;
+    --surface:#FFFFFF;
+    --ink:#1E2A2B;
+    --ink-soft:#5A6566;
+    --ink-faint:#8A9293;
+    --line:#E3E5DF;
+    --line-strong:#D2D5CD;
+    --pine:#2F6F5E;
+    --pine-soft:#E7F0EC;
+    --amber:#B9772A;
+    --amber-soft:#F6ECDC;
+    --clay:#AD4736;
+    --clay-soft:#F6E2DD;
+    --shadow:0 1px 2px rgba(30,42,43,.04), 0 6px 16px rgba(30,42,43,.05);
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--paper);color:var(--ink);font-family:"Inter",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  body{padding:28px 20px 80px;line-height:1.5}
+  .wrap{max-width:760px;margin:0 auto}
+
+  /* Header */
+  header{margin-bottom:22px}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px}
+  h1{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:34px;line-height:1.02;letter-spacing:-.02em}
+  .summary{margin-top:10px;font-size:15px;color:var(--ink-soft);display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .dot.calm{background:var(--pine)}
+  .dot.warn{background:var(--amber)}
+  .dot.alert{background:var(--clay)}
+  .summary b{color:var(--ink);font-weight:600}
+
+  /* Capture */
+  .capture{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin:18px 0 26px}
+  .capture-row{display:flex;gap:10px;align-items:center}
+  .capture input.title{flex:1;min-width:0;border:none;background:transparent;font-size:16px;font-family:inherit;color:var(--ink);padding:8px 4px}
+  .capture input.title::placeholder{color:var(--ink-faint)}
+  .capture input.title:focus{outline:none}
+  .add-btn{flex:none;background:var(--pine);color:#fff;border:none;border-radius:9px;padding:10px 18px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s,transform .08s}
+  .add-btn:hover{background:#27604f}
+  .add-btn:active{transform:translateY(1px)}
+  .more-toggle{flex:none;background:transparent;border:none;color:var(--ink-faint);font-size:20px;line-height:1;cursor:pointer;padding:6px 8px;border-radius:8px}
+  .more-toggle:hover{background:var(--paper);color:var(--ink-soft)}
+  .capture-extra{display:none;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 4px 4px;margin-top:8px;border-top:1px dashed var(--line)}
+  .capture-extra.open{display:flex}
+  .pri-pills{display:flex;gap:6px}
+  .pill{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);padding:6px 11px;border-radius:999px;cursor:pointer;transition:all .12s}
+  .pill[aria-pressed="true"][data-p="high"]{background:var(--clay-soft);border-color:var(--clay);color:var(--clay)}
+  .pill[aria-pressed="true"][data-p="medium"]{background:var(--amber-soft);border-color:var(--amber);color:var(--amber)}
+  .pill[aria-pressed="true"][data-p="low"]{background:var(--pine-soft);border-color:var(--pine);color:var(--pine)}
+  .field{display:flex;align-items:center;gap:7px}
+  .field label{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint)}
+  .capture-extra input[type=date],.capture-extra input.cat{font-family:inherit;font-size:13px;border:1px solid var(--line-strong);border-radius:8px;padding:7px 9px;color:var(--ink);background:var(--surface)}
+  .capture-extra input.cat{width:130px}
+  .capture-extra input:focus{outline:none;border-color:var(--pine)}
+
+  /* Filters */
+  .filters{display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap}
+  .filter{background:transparent;border:none;font-family:inherit;font-size:13px;font-weight:500;color:var(--ink-faint);padding:6px 12px;border-radius:8px;cursor:pointer}
+  .filter[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .filter:not([aria-pressed="true"]):hover{background:var(--line)}
+
+  /* Buckets */
+  .bucket{margin-bottom:26px}
+  .bucket-head{display:flex;align-items:baseline;gap:10px;margin:0 2px 10px}
+  .bucket-head .name{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:14px;letter-spacing:.01em}
+  .bucket-head .count{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint)}
+  .bucket-head .rule{flex:1;height:1px;background:var(--line);align-self:center}
+  .bucket.overdue .name{color:var(--clay)}
+  .bucket.today .name{color:var(--amber)}
+
+  /* Task card */
+  .task{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px 14px;margin-bottom:8px;box-shadow:var(--shadow);display:flex;gap:12px;align-items:flex-start;position:relative;transition:opacity .2s,transform .2s;animation:rise .22s ease}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .task.lead{border-left:3px solid var(--clay)}
+  .bucket.today .task.lead{border-left-color:var(--amber)}
+  .check{flex:none;width:21px;height:21px;border:2px solid var(--line-strong);border-radius:7px;background:transparent;cursor:pointer;margin-top:1px;display:grid;place-items:center;transition:all .14s}
+  .check:hover{border-color:var(--pine)}
+  .check svg{width:12px;height:12px;stroke:#fff;stroke-width:3;fill:none;opacity:0;transition:opacity .12s}
+  .task.done .check{background:var(--pine);border-color:var(--pine)}
+  .task.done .check svg{opacity:1}
+  .body{flex:1;min-width:0}
+  .task .ttl{font-size:15px;color:var(--ink);word-break:break-word;cursor:text}
+  .task.done .ttl{color:var(--ink-faint);text-decoration:line-through}
+  .task.blocked .ttl{font-style:italic}
+  .meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px}
+  .tag{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.03em;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:5px}
+  .tag.due{background:var(--paper);color:var(--ink-soft)}
+  .tag.due.over{background:var(--clay-soft);color:var(--clay)}
+  .tag.due.soon{background:var(--amber-soft);color:var(--amber)}
+  .tag.pri{text-transform:uppercase}
+  .tag.pri.high{background:var(--clay-soft);color:var(--clay)}
+  .tag.pri.medium{background:var(--amber-soft);color:var(--amber)}
+  .tag.pri.low{background:var(--pine-soft);color:var(--pine)}
+  .tag.cat{background:var(--line);color:var(--ink-soft)}
+  .tag.blocked{background:var(--amber-soft);color:var(--amber);font-style:italic}
+  .pill.e-blocked[aria-pressed="true"]{background:var(--amber-soft);border-color:var(--amber);color:var(--amber)}
+  .note{margin-top:8px;font-size:13.5px;color:var(--ink-soft);white-space:pre-wrap;word-break:break-word}
+  .row-actions{flex:none;display:flex;gap:2px;opacity:0;transition:opacity .15s}
+  .task:hover .row-actions,.task:focus-within .row-actions{opacity:1}
+  .icon-btn{background:transparent;border:none;color:var(--ink-faint);cursor:pointer;padding:5px;border-radius:6px;font-size:13px;line-height:1}
+  .icon-btn:hover{background:var(--paper);color:var(--ink)}
+
+  /* Editor */
+  .editor{margin-top:11px;padding-top:11px;border-top:1px dashed var(--line);display:none;flex-direction:column;gap:9px}
+  .editor.open{display:flex}
+  .editor textarea,.editor input[type=text],.editor input[type=date]{font-family:inherit;font-size:14px;border:1px solid var(--line-strong);border-radius:8px;padding:9px;color:var(--ink);width:100%;background:var(--surface)}
+  .editor textarea{resize:vertical;min-height:54px}
+  .editor input:focus,.editor textarea:focus{outline:none;border-color:var(--pine)}
+  .editor .erow{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+  .editor .erow .field{flex-direction:column;align-items:flex-start;gap:4px}
+  .ghost{background:transparent;border:1px solid var(--line-strong);color:var(--ink-soft);border-radius:8px;padding:7px 13px;font-size:13px;font-family:inherit;font-weight:500;cursor:pointer}
+  .ghost:hover{border-color:var(--ink-soft)}
+  .ghost.danger:hover{border-color:var(--clay);color:var(--clay)}
+
+  /* Empty / loading */
+  .state{text-align:center;padding:48px 20px;color:var(--ink-faint)}
+  .state .big{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:20px;color:var(--ink-soft);margin-bottom:6px}
+  .done-bucket .task{opacity:.78}
+
+  /* Job notes */
+  .section-head{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:21px;margin:38px 2px 4px;letter-spacing:-.01em}
+  .section-sub{font-size:13px;color:var(--ink-soft);margin:0 2px 16px;max-width:60ch}
+  .noteadd{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;margin-bottom:18px;display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+  .noteadd input.job{font-family:inherit;font-size:14px;border:1px solid var(--line-strong);border-radius:8px;padding:9px 10px;color:var(--ink);background:var(--surface);width:150px}
+  .noteadd input.notetext{flex:1;min-width:180px;font-family:inherit;font-size:14px;border:1px solid var(--line-strong);border-radius:8px;padding:9px 10px;color:var(--ink);background:var(--surface)}
+  .noteadd input:focus{outline:none;border-color:var(--pine)}
+  .jobcard{background:var(--surface);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);padding:13px 15px 6px;margin-bottom:10px}
+  .jobcard h3{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:15px;display:flex;align-items:baseline;gap:8px}
+  .jobcard .jobcount{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);font-weight:400}
+  .noteitem{display:flex;gap:9px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line)}
+  .noteitem:first-of-type{border-top:none;margin-top:5px}
+  .noteitem .bullet{color:var(--pine);flex:none;margin-top:1px;font-size:11px}
+  .noteitem .ntext{flex:1;font-size:14px;color:var(--ink);white-space:pre-wrap;word-break:break-word}
+  .noteitem .nts{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-faint);margin-top:3px}
+  .noteitem .ndel{opacity:0;background:transparent;border:none;color:var(--ink-faint);cursor:pointer;font-size:15px;line-height:1;padding:2px 6px;border-radius:6px;flex:none;transition:opacity .15s}
+  .jobcard:hover .ndel{opacity:1}
+  .noteitem .ndel:hover{background:var(--paper);color:var(--clay)}
+
+  /* Sync */
+  .syncbar{display:flex;gap:6px;justify-content:flex-end;margin:-4px 2px 14px}
+  .sync-btn{background:transparent;border:1px solid var(--line-strong);color:var(--ink-soft);font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding:6px 11px;border-radius:8px;cursor:pointer;transition:all .12s}
+  .sync-btn:hover{border-color:var(--pine);color:var(--pine)}
+  .sync-section{display:none;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:14px}
+  .sync-section.open{display:block}
+  .sync-label{font-size:13px;color:var(--ink-soft);margin-bottom:9px}
+  .sync-section textarea{width:100%;min-height:120px;font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.45;border:1px solid var(--line-strong);border-radius:8px;padding:10px;color:var(--ink);background:var(--paper);resize:vertical;margin-bottom:9px}
+  .sync-section textarea:focus{outline:none;border-color:var(--pine)}
+  .sync-msg{font-size:12.5px;color:var(--pine);align-self:center}
+  .backup-status{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.03em;align-self:center;color:var(--ink-faint)}
+  .backup-status.dirty{color:var(--amber)}
+  .backup-status.clean{color:var(--pine)}
+
+  /* Search */
+  .searchbar{position:relative;margin-bottom:12px}
+  .searchbar input{width:100%;font-family:inherit;font-size:14px;border:1px solid var(--line-strong);border-radius:10px;padding:10px 34px 10px 34px;color:var(--ink);background:var(--surface)}
+  .searchbar input::placeholder{color:var(--ink-faint)}
+  .searchbar input:focus{outline:none;border-color:var(--pine)}
+  .searchbar .ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--ink-faint);font-size:13px;pointer-events:none}
+  .searchbar .clear{position:absolute;right:7px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:var(--ink-faint);cursor:pointer;font-size:17px;line-height:1;padding:4px 7px;border-radius:6px;display:none}
+  .searchbar .clear:hover{color:var(--ink);background:var(--paper)}
+  .searchbar .clear.show{display:block}
+
+  /* Done-task controls */
+  .done-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:9px}
+  .mini{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.03em;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);padding:4px 10px;border-radius:999px;cursor:pointer;transition:all .12s}
+  .mini:hover{border-color:var(--pine);color:var(--pine)}
+  .mini[aria-pressed="true"]{background:var(--pine-soft);border-color:var(--pine);color:var(--pine)}
+  .mini.warn:hover{border-color:var(--amber);color:var(--amber)}
+  .done-hint{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-faint)}
+
+  /* Collapsible archive */
+  .arch-head{cursor:pointer;user-select:none}
+  .arch-head .name{color:var(--ink-faint)}
+  .arch-head:hover .arch-toggle{color:var(--pine)}
+  .arch-toggle{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint)}
+  .arch-body{display:none}
+  .arch-body.open{display:block}
+
+  @media (max-width:560px){
+    h1{font-size:28px}
+    .capture-row{flex-wrap:wrap}
+    .capture input.title{flex-basis:100%}
+    .add-btn{flex:1}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Worklog</div>
+    <h1>Your task desk</h1>
+    <div class="summary" id="summary"><span class="dot calm"></span><span>Loading your tasks…</span></div>
+  </header>
+
+  <div class="capture">
+    <div class="capture-row">
+      <input class="title" id="newTitle" type="text" placeholder="What needs doing? Type it and press Enter…" autocomplete="off">
+      <button class="more-toggle" id="moreToggle" title="Set priority, date, or category" aria-label="More options">+</button>
+      <button class="add-btn" id="addBtn">Add</button>
+    </div>
+    <div class="capture-extra" id="captureExtra">
+      <div class="pri-pills" role="group" aria-label="Priority">
+        <button class="pill" data-p="high" aria-pressed="false">High</button>
+        <button class="pill" data-p="medium" aria-pressed="true">Medium</button>
+        <button class="pill" data-p="low" aria-pressed="false">Low</button>
+      </div>
+      <div class="field"><label>Due</label><input type="date" id="newDue"></div>
+      <div class="field"><label>Tag</label><input class="cat" id="newCat" type="text" placeholder="e.g. Acme"></div>
+    </div>
+  </div>
+
+  <div class="searchbar">
+    <span class="ico">⌕</span>
+    <input id="searchInput" type="text" placeholder="Search all tasks — active, recent, and archived…" autocomplete="off">
+    <button class="clear" id="searchClear" aria-label="Clear search">×</button>
+  </div>
+
+  <div class="filters" id="filters">
+    <button class="filter" data-f="all" aria-pressed="true">All active</button>
+    <button class="filter" data-f="high" aria-pressed="false">High priority</button>
+    <button class="filter" data-f="done" aria-pressed="false">Done</button>
+  </div>
+
+  <div class="syncbar">
+    <span class="backup-status" id="backupStatus" style="margin-right:auto"></span>
+    <button class="sync-btn" id="exportBtn">↑ Copy for Claude</button>
+    <button class="sync-btn" id="importBtn">↓ Load snapshot</button>
+  </div>
+  <div class="sync-section" id="exportSection">
+    <div class="sync-label">A snapshot of your active board plus recently completed work — the last two weeks, plus anything you've pinned as relevant. Archived tasks stay in this browser and are left out to keep it short. Copy it and paste it to Claude to sync.</div>
+    <textarea id="exportText" readonly></textarea>
+    <div class="erow"><button class="add-btn" id="copyBtn">Copy</button><span class="sync-msg" id="copiedMsg"></span></div>
+  </div>
+  <div class="sync-section" id="importSection">
+    <div class="sync-label">Paste a snapshot Claude gave you, then load it to update the board.</div>
+    <textarea id="importText" placeholder="Paste the snapshot here…"></textarea>
+    <div class="erow"><button class="add-btn" id="loadBtn">Load into board</button><span class="sync-msg" id="loadMsg"></span></div>
+  </div>
+
+  <div id="list"></div>
+
+  <div class="section-head">Job notes</div>
+  <div class="section-sub">Reference info filed by job — specs, decisions, contacts, anything worth keeping. Tell Claude a fact about a job and it lands here.</div>
+  <div class="noteadd">
+    <input class="job" id="noteJob" list="jobList" placeholder="Job (e.g. Aspen)" autocomplete="off">
+    <datalist id="jobList"></datalist>
+    <input class="notetext" id="noteText" type="text" placeholder="A note about that job…" autocomplete="off">
+    <button class="add-btn" id="noteAddBtn">Add note</button>
+  </div>
+  <div id="notesList"></div>
+</div>
+
+<script>
+const KEY = "worklog:tasks:v2";
+let tasks = [];
+const SEED = [
+  {id:"rogers-samples", title:"Rogers — order remaining samples", notes:"Some samples already ordered. Figure out which are still missing and order ASAP — lead time on samples is what unblocks the submittal package.", priority:"high", due:null, category:"Rogers", status:"active", createdAt:1, completedAt:null},
+  {id:"wilkinson-bid", title:"Wilkinson Waters — get bid made", notes:"Needs to go out as soon as possible.", priority:"high", due:null, category:"Wilkinson Waters", status:"active", createdAt:2, completedAt:null},
+  {id:"aspen-matt", title:"Aspen Estates — follow up with Matt for new measure", notes:"Aspen Protect-All price comparison is the priority job, but it's BLOCKED until Matt sends the new measure. The live action is nudging Matt. Once the measure is back, the task becomes: build the Protect-All price comparison.", priority:"high", due:null, category:"Aspen Estates", status:"active", createdAt:3, completedAt:null},
+  {id:"rogers-submittal", title:"Rogers — create submittal package", notes:"Follows the samples. Some pieces may depend on samples arriving.", priority:"medium", due:null, category:"Rogers", status:"active", createdAt:4, completedAt:null},
+  {id:"owens-c", title:"Owens Crossroads (Huntsville) — Building C ballpark", notes:"Rough/ballpark estimate. No stated deadline.", priority:"medium", due:null, category:"Owens Crossroads", status:"active", createdAt:5, completedAt:null},
+  {id:"st-therese", title:"St. Therese — change & update timeline", notes:"Go through all St. Therese emails and build a timeline of every change/update made. Documentation task — best in a focused block. (Hold on uploading the emails until the company AI policy is settled.)", priority:"medium", due:null, category:"St. Therese", status:"active", createdAt:6, completedAt:null}
+];
+let filter = "all";
+let newPriority = "medium";
+let searchQuery = "";
+let archOpen = false;
+
+let notes = {};
+const NOTES_KEY = "worklog:notes:v1";
+const NOTES_SEED = {
+  "Aspen Estates":[
+    {id:"asn1", text:"New measure received from Matt.", ts:Date.now()},
+    {id:"asn2", text:"Walk-off changed — account for the updated walk-off when building the price comparison.", ts:Date.now()}
+  ],
+  "Rogers":[
+    {id:"rgn1", text:"Color TBDs need to be compiled and sent to Brit.", ts:Date.now()}
+  ]
+};
+
+const $ = s => document.querySelector(s);
+const listEl = $("#list");
+
+/* ---------- storage ----------
+   Two layers, on purpose:
+   - localStorage: durable in a real browser (survives closing the tab / overnight)
+   - window.storage: used when this runs inside Claude as an artifact
+   We read whichever layer has data, write to both, and NEVER overwrite real
+   data with the seed list or write anything before loading has finished. */
+const SEED_FLAG = "worklog:seeded:v1";
+let loaded = false;
+let dirtySinceBackup = false;
+
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){ return false; } }
+function wsOk(){ try{ return !!(window.storage && typeof window.storage.get==="function"); }catch(e){ return false; } }
+async function wsGet(k){ try{ const r=await window.storage.get(k); return r && r.value ? r.value : null; }catch(e){ return null; } }
+function wsSet(k,v){ if(!wsOk()) return; try{ const p=window.storage.set(k,v); if(p && p.catch) p.catch(()=>{}); }catch(e){} }
+
+function persistTasks(){ const j=JSON.stringify(tasks); lsSet(KEY,j); lsSet(SEED_FLAG,"1"); wsSet(KEY,j); }
+function persistNotes(){ const j=JSON.stringify(notes); lsSet(NOTES_KEY,j); wsSet(NOTES_KEY,j); }
+
+async function load(){
+  let raw = null;
+  if(wsOk()) raw = await wsGet(KEY);
+  if(raw==null) raw = lsGet(KEY);
+  if(raw!=null){ try{ const p=JSON.parse(raw); if(Array.isArray(p)) tasks=p; }catch(e){} }
+  if(!tasks.length && raw==null && !lsGet(SEED_FLAG)) tasks = SEED.slice();  // genuine first run only
+  loaded = true;
+  persistTasks();
+  updateBackupStatus();
+}
+let saveTimer;
+function save(){
+  if(!loaded) return;                 // never write before load completes
+  dirtySinceBackup = true; updateBackupStatus();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(persistTasks, 120);
+}
+async function loadNotes(){
+  let raw = null;
+  if(wsOk()) raw = await wsGet(NOTES_KEY);
+  if(raw==null) raw = lsGet(NOTES_KEY);
+  if(raw!=null){ try{ const p=JSON.parse(raw); if(p && typeof p==="object") notes=p; }catch(e){} }
+  if((!notes || !Object.keys(notes).length) && raw==null && !lsGet(SEED_FLAG)) notes = JSON.parse(JSON.stringify(NOTES_SEED));
+  persistNotes();
+}
+let notesSaveTimer;
+function saveNotes(){
+  if(!loaded) return;
+  dirtySinceBackup = true; updateBackupStatus();
+  clearTimeout(notesSaveTimer);
+  notesSaveTimer = setTimeout(persistNotes, 120);
+}
+
+function updateBackupStatus(){
+  const el = document.getElementById("backupStatus");
+  if(!el) return;
+  if(dirtySinceBackup){ el.textContent = "● unsynced — copy a snapshot to back up"; el.className = "backup-status dirty"; }
+  else { el.textContent = "✓ backed up"; el.className = "backup-status clean"; }
+}
+function markBackedUp(){ dirtySinceBackup = false; updateBackupStatus(); }
+window.addEventListener("beforeunload", e=>{
+  if(dirtySinceBackup){ e.preventDefault(); e.returnValue = ""; }
+});
+
+/* ---------- dates ---------- */
+function today(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
+function parseDue(s){ if(!s) return null; const [y,m,dd]=s.split("-").map(Number); return new Date(y,m-1,dd); }
+function daysUntil(s){ const d=parseDue(s); if(!d) return null; return Math.round((d-today())/86400000); }
+function fmtDue(s){
+  const n = daysUntil(s);
+  if(n===null) return "";
+  if(n<0) return n===-1 ? "yesterday" : Math.abs(n)+"d overdue";
+  if(n===0) return "today";
+  if(n===1) return "tomorrow";
+  if(n<7) return parseDue(s).toLocaleDateString(undefined,{weekday:"short"});
+  return parseDue(s).toLocaleDateString(undefined,{month:"short",day:"numeric"});
+}
+
+/* ---------- archive logic ---------- */
+const TWO_WEEKS = 14*864e5;
+/* A done task is "archived" (hidden from Claude) when it's explicitly archived,
+   or older than two weeks and not pinned as relevant. Pinned always wins. */
+function isArchived(t){
+  if(t.status!=="done") return false;
+  if(t.relevant) return false;
+  if(t.archived) return true;
+  return (Date.now()-(t.completedAt||0)) > TWO_WEEKS;
+}
+function archivesInDays(t){
+  return Math.max(0, Math.ceil((TWO_WEEKS-(Date.now()-(t.completedAt||0)))/864e5));
+}
+
+/* ---------- sorting & buckets ---------- */
+const PW = {high:0, medium:1, low:2};
+function bucketOf(t){
+  const n = daysUntil(t.due);
+  if(n===null) return "later";
+  if(n<0) return "overdue";
+  if(n===0) return "today";
+  if(n<=7) return "week";
+  return "later";
+}
+function sortTasks(a,b){
+  const na=daysUntil(a.due), nb=daysUntil(b.due);
+  if(na!==null && nb!==null && na!==nb) return na-nb;
+  if(na!==null && nb===null) return -1;
+  if(na===null && nb!==null) return 1;
+  if(PW[a.priority]!==PW[b.priority]) return PW[a.priority]-PW[b.priority];
+  return (a.createdAt||0)-(b.createdAt||0);
+}
+
+/* ---------- rendering ---------- */
+const BUCKETS = [
+  {key:"overdue", label:"Overdue", cls:"overdue"},
+  {key:"today",   label:"Today",   cls:"today"},
+  {key:"week",    label:"This week", cls:"week"},
+  {key:"later",   label:"Later & undated", cls:"later"},
+];
+const checkSVG = '<svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>';
+
+function summarize(){
+  const active = tasks.filter(t=>t.status==="active");
+  const over = active.filter(t=>bucketOf(t)==="overdue").length;
+  const tod  = active.filter(t=>bucketOf(t)==="today").length;
+  const el = $("#summary");
+  let dot="calm", msg="";
+  if(active.length===0){ msg = tasks.length? "<b>All clear.</b> Everything's done — enjoy it." : "<b>Empty desk.</b> Add the first thing on your mind below."; }
+  else if(over>0){ dot="alert"; msg = `<b>${over} overdue</b>${tod?` and ${tod} due today`:""}. Start at the top.`; }
+  else if(tod>0){ dot="warn"; msg = `<b>${tod} due today</b>. Nothing overdue — you're on track.`; }
+  else{ dot="calm"; msg = `<b>Nothing overdue.</b> ${active.length} task${active.length>1?"s":""} on deck.`; }
+  el.innerHTML = `<span class="dot ${dot}"></span><span>${msg}</span>`;
+}
+
+function taskCard(t, lead){
+  const card = document.createElement("div");
+  card.className = "task" + (t.status==="done"?" done":"") + (t.blocked&&t.status==="active"?" blocked":"") + (lead?" lead":"");
+  card.dataset.id = t.id;
+
+  const dueN = daysUntil(t.due);
+  const dueCls = dueN===null?"":(dueN<0?"over":(dueN<=2?"soon":""));
+  const metaBits = [];
+  if(t.blocked&&t.status==="active") metaBits.push(`<span class="tag blocked">⊘ blocked</span>`);
+  if(t.due) metaBits.push(`<span class="tag due ${dueCls}">${fmtDue(t.due)}</span>`);
+  if(t.status==="active") metaBits.push(`<span class="tag pri ${t.priority}">${t.priority}</span>`);
+  if(t.category) metaBits.push(`<span class="tag cat">${esc(t.category)}</span>`);
+
+  let doneActions = "";
+  if(t.status==="done"){
+    const archd = isArchived(t);
+    let btns, hint;
+    if(archd){
+      btns = `<button class="mini" data-act="restore">↩ Restore</button>`;
+      hint = "Hidden from Claude";
+    }else{
+      btns = `<button class="mini" data-act="relevant" aria-pressed="${t.relevant?"true":"false"}">${t.relevant?"★ Pinned":"☆ Keep relevant"}</button>`
+           + `<button class="mini warn" data-act="archive">Archive</button>`;
+      if(t.relevant) hint = "Pinned · stays in sync";
+      else { const d=archivesInDays(t); hint = d>1 ? `Auto-archives in ${d}d` : "Auto-archives soon"; }
+    }
+    doneActions = `<div class="done-actions">${btns}<span class="done-hint">${hint}${t.completedAt?` · done ${relTime(t.completedAt)}`:""}</span></div>`;
+  }
+
+  card.innerHTML = `
+    <button class="check" data-act="toggle" aria-label="Mark done">${checkSVG}</button>
+    <div class="body">
+      <div class="ttl" data-act="edit">${esc(t.title)}</div>
+      ${metaBits.length?`<div class="meta">${metaBits.join("")}</div>`:""}
+      ${t.notes?`<div class="note">${esc(t.notes)}</div>`:""}
+      ${doneActions}
+      <div class="editor">
+        <input type="text" class="e-title" value="${escAttr(t.title)}" placeholder="Task">
+        <textarea class="e-notes" placeholder="Details, context, links…">${esc(t.notes||"")}</textarea>
+        <div class="erow">
+          <div class="pri-pills" role="group" aria-label="Priority">
+            <button class="pill e-pri" data-p="high" aria-pressed="${t.priority==="high"}">High</button>
+            <button class="pill e-pri" data-p="medium" aria-pressed="${t.priority==="medium"}">Medium</button>
+            <button class="pill e-pri" data-p="low" aria-pressed="${t.priority==="low"}">Low</button>
+          </div>
+          <div class="field"><label style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint)">Due</label><input type="date" class="e-due" value="${t.due||""}"></div>
+          <div class="field"><label style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint)">Tag</label><input type="text" class="e-cat" value="${escAttr(t.category||"")}" placeholder="e.g. Acme" style="width:120px"></div>
+          <button class="pill e-blocked" aria-pressed="${t.blocked?"true":"false"}">⊘ Blocked</button>
+        </div>
+        <div class="erow">
+          <button class="add-btn e-save">Save</button>
+          <button class="ghost e-cancel">Cancel</button>
+          <button class="ghost danger e-del" style="margin-left:auto">Delete</button>
+        </div>
+      </div>
+    </div>
+    <div class="row-actions">
+      <button class="icon-btn" data-act="edit" title="Edit">✎</button>
+    </div>`;
+  return card;
+}
+
+function render(){
+  summarize();
+  listEl.innerHTML = "";
+
+  /* ---- search overrides everything ---- */
+  const q = searchQuery.trim().toLowerCase();
+  if(q){
+    const hits = tasks.filter(t=>
+      (t.title||"").toLowerCase().includes(q) ||
+      (t.notes||"").toLowerCase().includes(q) ||
+      (t.category||"").toLowerCase().includes(q)
+    ).sort((a,b)=>{
+      const aa=a.status==="active", ba=b.status==="active";
+      if(aa!==ba) return aa?-1:1;
+      return (b.completedAt||b.createdAt||0)-(a.completedAt||a.createdAt||0);
+    });
+    if(!hits.length){ emptyState("No matches", `Nothing matches \u201c${esc(searchQuery.trim())}\u201d.`); return; }
+    const wrap=document.createElement("div"); wrap.className="bucket";
+    wrap.innerHTML=`<div class="bucket-head"><span class="name">Search results</span><span class="count">${hits.length} match${hits.length>1?"es":""}</span><span class="rule"></span></div>`;
+    hits.forEach(t=>wrap.appendChild(taskCard(t,false)));
+    listEl.appendChild(wrap);
+    return;
+  }
+
+  if(filter==="done"){
+    const done = tasks.filter(t=>t.status==="done");
+    if(!done.length){ emptyState("Nothing finished yet","Completed tasks will collect here so you can see your progress."); return; }
+    const recent = done.filter(t=>!isArchived(t)).sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));
+    const arch   = done.filter(t=> isArchived(t)).sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));
+
+    const w1=document.createElement("div"); w1.className="bucket done-bucket";
+    w1.innerHTML=`<div class="bucket-head"><span class="name">Recent &amp; relevant</span><span class="count">${recent.length}</span><span class="rule"></span></div>`;
+    if(recent.length) recent.forEach(t=>w1.appendChild(taskCard(t,false)));
+    else{ const e=document.createElement("div"); e.className="state"; e.innerHTML='<div>Nothing here right now. Finished tasks live here for two weeks (or until you archive them), and this is what syncs to Claude.</div>'; w1.appendChild(e); }
+    listEl.appendChild(w1);
+
+    const w2=document.createElement("div"); w2.className="bucket done-bucket";
+    w2.innerHTML=`<div class="bucket-head arch-head"><span class="name">Archived</span><span class="count">${arch.length}</span><span class="arch-toggle">${arch.length?(archOpen?"hide":"show"):""}</span><span class="rule"></span></div><div class="arch-body${archOpen?" open":""}"></div>`;
+    const body=w2.querySelector(".arch-body");
+    if(arch.length) arch.forEach(t=>body.appendChild(taskCard(t,false)));
+    else body.innerHTML='<div class="state"><div>Nothing archived yet. Hidden from Claude\u2019s snapshot when it lands here.</div></div>';
+    listEl.appendChild(w2);
+    return;
+  }
+
+  let active = tasks.filter(t=>t.status==="active");
+  if(filter==="high") active = active.filter(t=>t.priority==="high");
+
+  if(!active.length){
+    if(filter==="high") emptyState("No high-priority tasks","Nothing flagged urgent right now. Switch to All active to see the rest.");
+    else emptyState("Your desk is clear","Add something above — a task, a reminder, a half-formed thought. Sort it later.");
+    return;
+  }
+
+  BUCKETS.forEach(b=>{
+    const items = active.filter(t=>bucketOf(t)===b.key).sort(sortTasks);
+    if(!items.length) return;
+    const wrap=document.createElement("div"); wrap.className="bucket "+b.cls;
+    wrap.innerHTML=`<div class="bucket-head"><span class="name">${b.label}</span><span class="count">${items.length}</span><span class="rule"></span></div>`;
+    items.forEach((t,i)=>wrap.appendChild(taskCard(t, (b.key==="overdue"||b.key==="today")&&i===0)));
+    listEl.appendChild(wrap);
+  });
+}
+
+function emptyState(big,sub){
+  const d=document.createElement("div"); d.className="state";
+  d.innerHTML=`<div class="big">${big}</div><div>${sub}</div>`;
+  listEl.appendChild(d);
+}
+
+/* ---------- helpers ---------- */
+function esc(s){ return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+function escAttr(s){ return String(s).replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+/* ---------- actions ---------- */
+function addTask(){
+  const inp=$("#newTitle"); const title=inp.value.trim();
+  if(!title) return;
+  tasks.push({
+    id:uid(), title, notes:"", priority:newPriority,
+    due: $("#newDue").value||null,
+    category: $("#newCat").value.trim()||null,
+    status:"active", createdAt:Date.now(), completedAt:null, relevant:false, archived:false, blocked:false
+  });
+  inp.value=""; $("#newDue").value=""; $("#newCat").value="";
+  inp.focus();
+  save(); render();
+}
+
+listEl.addEventListener("click", e=>{
+  if(e.target.closest(".arch-head")){ archOpen=!archOpen; render(); return; }
+  const card = e.target.closest(".task"); if(!card) return;
+  const id = card.dataset.id;
+  const t = tasks.find(x=>x.id===id); if(!t) return;
+  const act = e.target.closest("[data-act]")?.dataset.act;
+
+  if(act==="toggle"){
+    t.status = t.status==="active"?"done":"active";
+    t.completedAt = t.status==="done"?Date.now():null;
+    save(); render(); return;
+  }
+  if(act==="edit"){
+    card.querySelector(".editor").classList.toggle("open"); return;
+  }
+  if(act==="relevant"){
+    t.relevant = !t.relevant; if(t.relevant) t.archived=false;
+    save(); render(); return;
+  }
+  if(act==="archive"){
+    t.archived=true; t.relevant=false;
+    save(); render(); return;
+  }
+  if(act==="restore"){
+    t.archived=false; t.relevant=true;
+    save(); render(); return;
+  }
+  if(e.target.classList.contains("e-pri")){
+    card.querySelectorAll(".e-pri").forEach(p=>p.setAttribute("aria-pressed", p===e.target?"true":"false"));
+    return;
+  }
+  if(e.target.classList.contains("e-blocked")){
+    const cur = e.target.getAttribute("aria-pressed")==="true";
+    e.target.setAttribute("aria-pressed", cur?"false":"true");
+    return;
+  }
+  if(e.target.classList.contains("e-save")){
+    const nt = card.querySelector(".e-title").value.trim();
+    if(nt) t.title = nt;
+    t.notes = card.querySelector(".e-notes").value.trim();
+    t.due = card.querySelector(".e-due").value||null;
+    t.category = card.querySelector(".e-cat").value.trim()||null;
+    const pr = card.querySelector('.e-pri[aria-pressed="true"]');
+    if(pr) t.priority = pr.dataset.p;
+    t.blocked = card.querySelector(".e-blocked").getAttribute("aria-pressed")==="true";
+    save(); render(); return;
+  }
+  if(e.target.classList.contains("e-cancel")){
+    card.querySelector(".editor").classList.remove("open"); return;
+  }
+  if(e.target.classList.contains("e-del")){
+    tasks = tasks.filter(x=>x.id!==id); save(); render(); return;
+  }
+});
+
+/* capture controls */
+$("#addBtn").addEventListener("click", addTask);
+$("#newTitle").addEventListener("keydown", e=>{ if(e.key==="Enter") addTask(); });
+$("#moreToggle").addEventListener("click", ()=> $("#captureExtra").classList.toggle("open"));
+document.querySelectorAll("#captureExtra .pill").forEach(p=>{
+  p.addEventListener("click", ()=>{
+    newPriority = p.dataset.p;
+    document.querySelectorAll("#captureExtra .pill").forEach(x=>x.setAttribute("aria-pressed", x===p?"true":"false"));
+  });
+});
+$("#filters").addEventListener("click", e=>{
+  const b=e.target.closest(".filter"); if(!b) return;
+  filter=b.dataset.f;
+  document.querySelectorAll(".filter").forEach(x=>x.setAttribute("aria-pressed", x===b?"true":"false"));
+  render();
+});
+
+/* search */
+$("#searchInput").addEventListener("input", e=>{
+  searchQuery = e.target.value;
+  $("#searchClear").classList.toggle("show", searchQuery.length>0);
+  render();
+});
+$("#searchClear").addEventListener("click", ()=>{
+  searchQuery=""; $("#searchInput").value=""; $("#searchClear").classList.remove("show");
+  $("#searchInput").focus(); render();
+});
+$("#searchInput").addEventListener("keydown", e=>{
+  if(e.key==="Escape"){ searchQuery=""; e.target.value=""; $("#searchClear").classList.remove("show"); render(); }
+});
+
+/* ---------- job notes ---------- */
+function relTime(ts){
+  if(!ts) return "";
+  const d=new Date(ts);
+  const t0=today(), d0=new Date(d); d0.setHours(0,0,0,0);
+  const diff=Math.round((t0-d0)/86400000);
+  if(diff<=0) return "today";
+  if(diff===1) return "yesterday";
+  if(diff<7) return diff+"d ago";
+  return d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+}
+function renderNotes(){
+  const wrap=$("#notesList"); wrap.innerHTML="";
+  const jobs=new Set([...Object.keys(notes), ...tasks.map(t=>t.category).filter(Boolean)]);
+  $("#jobList").innerHTML=[...jobs].sort().map(j=>`<option value="${escAttr(j)}">`).join("");
+  const named=Object.keys(notes).filter(j=>notes[j]&&notes[j].length).sort();
+  if(!named.length){
+    const d=document.createElement("div"); d.className="state";
+    d.innerHTML='<div class="big">No job notes yet</div><div>Add one above, or tell Claude a fact about a job and it\u2019ll file it here.</div>';
+    wrap.appendChild(d); return;
+  }
+  named.forEach(job=>{
+    const items=notes[job];
+    const card=document.createElement("div"); card.className="jobcard";
+    let html=`<h3>${esc(job)}<span class="jobcount">${items.length} note${items.length>1?"s":""}</span></h3>`;
+    items.forEach(n=>{
+      html+=`<div class="noteitem"><span class="bullet">\u25aa</span><div class="ntext">${esc(n.text)}<div class="nts">${relTime(n.ts)}</div></div><button class="ndel" data-del="${n.id}" aria-label="Delete note">\u00d7</button></div>`;
+    });
+    card.innerHTML=html; wrap.appendChild(card);
+  });
+}
+function addNote(){
+  const job=$("#noteJob").value.trim(), text=$("#noteText").value.trim();
+  if(!job||!text) return;
+  if(!notes[job]) notes[job]=[];
+  notes[job].push({id:uid(), text, ts:Date.now()});
+  $("#noteText").value=""; $("#noteText").focus();
+  saveNotes(); renderNotes();
+}
+$("#noteAddBtn").addEventListener("click", addNote);
+$("#noteText").addEventListener("keydown", e=>{ if(e.key==="Enter") addNote(); });
+$("#notesList").addEventListener("click", e=>{
+  const del=e.target.closest("[data-del]"); if(!del) return;
+  const id=del.dataset.del;
+  for(const job of Object.keys(notes)){
+    notes[job]=notes[job].filter(n=>n.id!==id);
+    if(!notes[job].length) delete notes[job];
+  }
+  saveNotes(); renderNotes();
+});
+
+/* ---------- sync (export / import) ---------- */
+function normalizeTask(t){
+  return {
+    id: t.id || uid(),
+    title: String(t.title || "Untitled task"),
+    notes: t.notes || "",
+    priority: ["high","medium","low"].includes(t.priority) ? t.priority : "medium",
+    due: t.due || null,
+    category: t.category || null,
+    status: t.status === "done" ? "done" : "active",
+    createdAt: t.createdAt || Date.now(),
+    completedAt: t.completedAt || null,
+    relevant: t.relevant === true,
+    archived: t.archived === true,
+    blocked: t.blocked === true
+  };
+}
+$("#exportBtn").addEventListener("click", ()=>{
+  const exportTasks = tasks.filter(t=>!isArchived(t));
+  $("#exportText").value = JSON.stringify({version:3, tasks:exportTasks, notes}, null, 2);
+  const s = $("#exportSection"); s.classList.toggle("open");
+  $("#importSection").classList.remove("open");
+  if(s.classList.contains("open")){ $("#exportText").focus(); $("#exportText").select(); }
+});
+$("#importBtn").addEventListener("click", ()=>{
+  const s = $("#importSection"); s.classList.toggle("open");
+  $("#exportSection").classList.remove("open");
+  if(s.classList.contains("open")) $("#importText").focus();
+});
+$("#copyBtn").addEventListener("click", async ()=>{
+  const t = $("#exportText"); t.select();
+  try{ await navigator.clipboard.writeText(t.value); }
+  catch(e){ try{ document.execCommand("copy"); }catch(_){} }
+  $("#copiedMsg").textContent = "Copied — paste it to Claude.";
+  markBackedUp();
+  setTimeout(()=> $("#copiedMsg").textContent = "", 3000);
+});
+$("#loadBtn").addEventListener("click", ()=>{
+  const raw = $("#importText").value.trim();
+  const msg = $("#loadMsg");
+  if(!raw) return;
+  let data;
+  try{ data = JSON.parse(raw); }
+  catch(e){ msg.style.color="var(--clay)"; msg.textContent="That doesn't look like a snapshot — copy the whole thing and try again."; return; }
+  let newTasks=null, newNotes=null;
+  if(Array.isArray(data)){ newTasks=data; }
+  else if(data && Array.isArray(data.tasks)){ newTasks=data.tasks; if(data.notes && typeof data.notes==="object") newNotes=data.notes; }
+  else { msg.style.color="var(--clay)"; msg.textContent="That snapshot is missing its task list."; return; }
+  const incoming = newTasks.map(normalizeTask);
+  const incomingIds = new Set(incoming.map(t=>t.id));
+  // Keep archived tasks that live only in this browser — the snapshot leaves them
+  // out on purpose, so loading shouldn't wipe your history.
+  const preserved = tasks.filter(t=> isArchived(t) && !incomingIds.has(t.id));
+  tasks = [...incoming, ...preserved];
+  save();
+  if(newNotes){ notes = newNotes; saveNotes(); }
+  render(); renderNotes();
+  markBackedUp();
+  msg.style.color="var(--pine)"; msg.textContent="Board updated.";
+  $("#importText").value="";
+  setTimeout(()=>{ msg.textContent=""; $("#importSection").classList.remove("open"); }, 1600);
+});
+
+/* ---------- boot ---------- */
+(async ()=>{ await load(); await loadNotes(); render(); renderNotes(); })();
+</script>
+</body>
+</html>
